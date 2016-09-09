@@ -24,6 +24,9 @@
 
 -(UIView *) hitTest:(CGPoint)point withEvent:(UIEvent *)event
 {
+    if (event == nil) {
+        return nil;
+    }
     if (!_currentCell) {
         [self removeFromSuperview];
         return nil;
@@ -39,7 +42,7 @@
     if (hide) {
         [_currentCell hideSwipeAnimated:YES];
     }
-    return _currentCell.touchOnDismissSwipe ? nil : self;;
+    return _currentCell.touchOnDismissSwipe ? nil : self;
 }
 
 @end
@@ -509,9 +512,9 @@ static inline CGFloat mgEaseInOutBounce(CGFloat t, CGFloat b, CGFloat c) {
     }
     CGFloat (*easingFunction)(CGFloat t, CGFloat b, CGFloat c) = 0;
     switch (_easingFunction) {
-        case MGSwipeEasingFunctionLinear: easingFunction = mgEaseLinear; break;
-        case MGSwipeEasingFunctionQuadIn: easingFunction = mgEaseInQuad;;break;
-        case MGSwipeEasingFunctionQuadOut: easingFunction = mgEaseOutQuad;;break;
+        case MGSwipeEasingFunctionLinear: easingFunction = mgEaseLinear;break;
+        case MGSwipeEasingFunctionQuadIn: easingFunction = mgEaseInQuad;break;
+        case MGSwipeEasingFunctionQuadOut: easingFunction = mgEaseOutQuad;break;
         case MGSwipeEasingFunctionQuadInOut: easingFunction = mgEaseInOutQuad;break;
         case MGSwipeEasingFunctionCubicIn: easingFunction = mgEaseInCubic;break;
         default:
@@ -580,6 +583,7 @@ static inline CGFloat mgEaseInOutBounce(CGFloat t, CGFloat b, CGFloat c) {
 
 -(void) awakeFromNib
 {
+    [super awakeFromNib];
     if (!_panRecognizer) {
         [self initViews:YES];
     }
@@ -639,9 +643,13 @@ static inline CGFloat mgEaseInOutBounce(CGFloat t, CGFloat b, CGFloat c) {
     if ([[UIView class] respondsToSelector:@selector(userInterfaceLayoutDirectionForSemanticContentAttribute:)]) {
         return [UIView userInterfaceLayoutDirectionForSemanticContentAttribute:self.semanticContentAttribute] == UIUserInterfaceLayoutDirectionRightToLeft;
     }
+#ifndef TARGET_IS_EXTENSION
     else {
         return [UIApplication sharedApplication].userInterfaceLayoutDirection == UIUserInterfaceLayoutDirectionRightToLeft;
     }
+#else
+    return NO;
+#endif
 }
 
 -(void) fixRegionAndAccesoryViews
@@ -1101,8 +1109,9 @@ static inline CGFloat mgEaseInOutBounce(CGFloat t, CGFloat b, CGFloat c) {
         [timer invalidate];
         _displayLink = nil;
         if (_animationCompletion) {
-            _animationCompletion(YES);
+            void (^callbackCopy)(BOOL finished) = _animationCompletion; //copy to avoid duplicated callbacks
             _animationCompletion = nil;
+            callbackCopy(YES);
         }
     }
 }
@@ -1119,8 +1128,9 @@ static inline CGFloat mgEaseInOutBounce(CGFloat t, CGFloat b, CGFloat c) {
         _displayLink = nil;
     }
     if (_animationCompletion) { //notify previous animation cancelled
-        _animationCompletion(NO);
+        void (^callbackCopy)(BOOL finished) = _animationCompletion; //copy to avoid duplicated callbacks
         _animationCompletion = nil;
+        callbackCopy(NO);
     }
     if (offset !=0) {
         [self createSwipeViewIfNeeded];
@@ -1329,5 +1339,20 @@ static inline CGFloat mgEaseInOutBounce(CGFloat t, CGFloat b, CGFloat c) {
         _swipeOverlay.backgroundColor = swipeBackgroundColor;
     }
 }
+
+#pragma mark Accessibility
+
+- (NSInteger)accessibilityElementCount {
+    return _swipeOffset == 0 ? [super accessibilityElementCount] : 1;
+}
+
+- (id)accessibilityElementAtIndex:(NSInteger)index {
+    return _swipeOffset == 0  ? [super accessibilityElementAtIndex:index] : self.contentView;
+}
+
+- (NSInteger)indexOfAccessibilityElement:(id)element {
+    return _swipeOffset == 0  ? [super indexOfAccessibilityElement:element] : 0;
+}
+
 
 @end
